@@ -1,0 +1,395 @@
+---
+title: "Phage_pilot"
+author: "John McMullen"
+date: "11/4/2021"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+Initial phage pilot experiment
+-Plants were seeded into three different soil types (SV = 1:1 parts sand and vermiculite; VTP = 1:1:1 parts vermiculite, turface clay, and ground peat moss; MMT = 1:2 parts metro mix 820 and turface clay) with approx. three clover seeds. Date: 22 Sept 21
+-Plants were heavily waters twice daily for two weeks, at which point, plants were culled except 1 (tried to pick similar plant sizes across pots), and 500 ul 10^7 CFU ml^-1 R. leguminosarum 461 was added to base of the plant as well as 500 ul 10^6 PFU ml^-1 rhizophage depending on the microbial addition treatment. 500 ul PBS was added to aposymbiotic plants. From this point on, plants were misted once daily. Date: 7 Oct 21
+-Plants were harvested for microbial and plant fitness metrics. Plants were not watered morning of harvest day. Date: 3 Nov 21
+
+###################
+
+Data
+```{r}
+library(ggplot2) #draw figures
+library(emmeans) #post hoc comparisons
+library(car) #Anova function
+library(dplyr) #produce mean and se for plant biomass
+
+# dat = read.csv("~/Dropbox/docs/Lennon_Lab/rhizophage/data/phage_pilot.csv")
+dat = read.csv("data/phage_pilot.csv")
+
+#convert columns in character to factors
+for(i in 1:ncol(dat)) {
+  ifelse(class(dat[,i])=="character",dat[,i]<-as.factor(dat[,i]),0)
+}
+```
+
+
+#Chlorophyll content 
+```{r}
+#analysis is weighted by number of leaves measured
+chl_w = lm(chlor_content ~soil_type*micro_trt, weights = leaf_chlor_measure,data=dat)
+summary(chl_w)
+
+#assess normality
+chl_w.res.lm = residuals(chl_w)
+summary(chl_w.res.lm)
+qqPlot(chl_w.res.lm)
+hist(chl_w.res.lm)
+boxplot(chl_w.res.lm)
+shapiro.test(chl_w.res.lm)
+
+#assess homoscedasticity
+plot(fitted(chl_w),chl_w.res.lm);
+abline(h=0,lty=2);
+lines(smooth.spline(fitted(chl_w),chl_w.res.lm));
+leveneTest(chl_w.res.lm ~ soil_type*micro_trt, data = dat)
+#looks okay
+
+Anova(chl_w)
+
+chl_w_post = emmeans(chl_w, ~ micro_trt|soil_type)
+pairs(chl_w_post)
+cld(chl_w_post)
+
+
+
+#######################
+
+#analysis is not weighted - for comparison, but it makes sense to keep leaves measured in the model. The weights weaken the interaction effect.
+chl = lm(chlor_content ~soil_type*micro_trt,data=dat)
+summary(chl)
+
+#assess normality
+chl.res.lm = residuals(chl)
+summary(chl.res.lm)
+qqPlot(chl.res.lm)
+hist(chl.res.lm)
+boxplot(chl.res.lm)
+shapiro.test(chl.res.lm)
+
+#assess homoscedasticity
+plot(fitted(chl),chl.res.lm);
+abline(h=0,lty=2);
+lines(smooth.spline(fitted(chl),chl.res.lm));
+leveneTest(chl.res.lm ~ soil_type*micro_trt, data = dat)
+#looks okay
+
+Anova(chl)
+
+chl_post = emmeans(chl, ~ micro_trt|soil_type)
+pairs(chl_post)
+cld(chl_post)
+
+#########
+
+#Graph of the weighted model
+chl_gg = as.data.frame(chl_w_post)
+
+ggplot(chl_gg, aes(micro_trt, emmean)) +
+  geom_point(size=5) +
+  geom_errorbar(aes(ymin=emmean-SE,ymax=emmean+SE),width=0.2) +
+  ylab('Chlorophyll [SPAD units]\n(mean \U00B1 SE, n = 3)') +
+  scale_y_continuous(limits = c(0,50),breaks=seq(0,50,by=10))+
+  theme_bw(base_size = 30) +
+  facet_grid(~soil_type,scale="free")+
+  theme(aspect.ratio=1,panel.grid = element_blank(),
+        panel.border = element_rect(size = 1, colour = "black"),
+        legend.title = element_blank(),axis.title.x = element_blank(),axis.text.x=element_text(size=rel(0.9)),axis.text.y=element_text(size=rel(0.9)),axis.title.y=element_text(size=rel(0.9)))
+```
+
+
+#Chlorophyll content converted
+```{r}
+#analysis is weighted by number of leaves measured; formula from ling et al 2011 photosynthesis research - tried just for funzies. Seems like if we can't get differences in the future, we should make a curve since this is a non linear relationship
+
+cnvt = (0.0007*((dat$chlor_content)^2)) + (0.023*dat$chlor_content) + 0.0544
+chl_w = lm(cnvt ~soil_type+micro_trt, weights = leaf_chlor_measure,data=dat)
+summary(chl_w)
+
+#assess normality
+chl_w.res.lm = residuals(chl_w)
+summary(chl_w.res.lm)
+qqPlot(chl_w.res.lm)
+hist(chl_w.res.lm)
+boxplot(chl_w.res.lm)
+shapiro.test(chl_w.res.lm)
+
+#assess homoscedasticity
+plot(fitted(chl_w),chl_w.res.lm);
+abline(h=0,lty=2);
+lines(smooth.spline(fitted(chl_w),chl_w.res.lm));
+leveneTest(chl_w.res.lm ~ soil_type*micro_trt, data = dat)
+#looks okay
+
+Anova(chl_w)
+
+chl_w_post = emmeans(chl_w, ~ micro_trt|soil_type)
+pairs(chl_w_post)
+cld(chl_w_post)
+
+
+
+#######################
+
+#Graph of the weighted model
+chl_gg = as.data.frame(chl_w_post)
+
+ggplot(chl_gg, aes(micro_trt, emmean)) +
+  geom_point(size=5) +
+  geom_errorbar(aes(ymin=emmean-SE,ymax=emmean+SE),width=0.2) +
+  ylab('Chlorophyll content [nmol mg^-1]\n(mean \U00B1 SE, n = 3)') +
+  #scale_y_continuous(limits = c(0,50),breaks=seq(0,50,by=10))+
+  theme_bw(base_size = 30) +
+  facet_grid(~soil_type,scale="free")+
+  theme(aspect.ratio=1,panel.grid = element_blank(),
+        panel.border = element_rect(size = 1, colour = "black"),
+        legend.title = element_blank(),axis.title.x = element_blank(),axis.text.x=element_text(size=rel(0.9)),axis.text.y=element_text(size=rel(0.9)),axis.title.y=element_text(size=rel(0.9)))
+```
+
+
+#Nodule biomass
+```{r}
+#analysis was weighted to the number of nodules (adding slightly dampens the soil effect), had to remove nodules larger than 1 mg since this was a measuring issue. interaction dropped, p = 0.52876
+nod_w = lm(per_nod_mg ~soil_type+micro_trt,weights = number_nodules, data=subset(dat,per_nod_mg<1))
+summary(nod_w)
+
+#assess normality
+nod_w.res.lm = residuals(nod_w)
+summary(nod_w.res.lm)
+qqPlot(nod_w.res.lm)
+hist(nod_w.res.lm)
+boxplot(nod_w.res.lm)
+shapiro.test(nod_w.res.lm)
+
+#assess homoscedasticity
+plot(fitted(nod_w),nod_w.res.lm);
+abline(h=0,lty=2);
+lines(smooth.spline(fitted(nod_w),nod_w.res.lm));
+leveneTest(nod_w.res.lm ~ soil_type*micro_trt, data = dat)
+#looks okay
+
+Anova(nod_w)
+
+nod_w_post = emmeans(nod_w, ~ micro_trt|soil_type)
+pairs(nod_w_post)
+
+#######################
+#Graph of model
+nod_gg = as.data.frame(nod_w_post)
+
+ggplot(nod_gg, aes(micro_trt, emmean)) +
+  geom_point(size=5) +
+  geom_errorbar(aes(ymin=emmean-SE,ymax=emmean+SE),width=0.2) +
+  ylab(expression(atop('Biomass [mg '~nodule^-1~"]", paste('(mean \U00B1 SE, n = 3)')))) +
+  scale_y_continuous(limits = c(-0.01,0.6),breaks=seq(0,0.6,by=0.2))+
+  theme_bw(base_size = 30) +
+  facet_grid(~soil_type,scale="free")+
+  theme(aspect.ratio=1,panel.grid = element_blank(),
+        panel.border = element_rect(size = 1, colour = "black"),
+        legend.title = element_blank(),axis.title.x = element_blank(),axis.text.x=element_text(size=rel(0.9)),axis.text.y=element_text(size=rel(0.9)),axis.title.y=element_text(size=rel(0.9)))
+
+```
+
+
+#Nodule number
+```{r}
+hist(dat$number_nodules)
+hist(subset(dat,micro_trt != "apo")$number_nodules)
+
+# dropped interaction p = 0.61893
+nodn_p = glm(number_nodules ~soil_type+micro_trt,family=quasipoisson(link = "log"),data=subset(dat,micro_trt != "Apo"))
+summary(nodn_p)
+
+#1 - pchisq(succ.mdl$deviance, succ.mdl$df.resid)
+1-pchisq(35.384,13) # 0.0007389516
+35.384/13 #2.7
+
+Anova(nodn_p,test.statistic = "Wald")
+
+nodn_post_p = emmeans(nodn_p, ~ micro_trt|soil_type, type="response")
+pairs(nodn_post_p)
+
+#Graph of model
+nodn_gg = as.data.frame(nodn_post_p)
+
+ggplot(nodn_gg, aes(micro_trt, rate)) +
+  geom_point(size=5) +
+  geom_errorbar(aes(ymin=asymp.LCL,ymax=asymp.UCL),width=0.2) +
+  ylab('Number of nodules\n(mean \U00B1 CI, n = 3)') +
+  scale_y_continuous(limits = c(0,80),breaks=seq(0,80,by=20))+
+  theme_bw(base_size = 30) +
+  facet_grid(~soil_type,scale="free")+
+  theme(aspect.ratio=1,panel.grid = element_blank(),
+        panel.border = element_rect(size = 1, colour = "black"),
+        legend.title = element_blank(),axis.title.x = element_blank(),axis.text.x=element_text(size=rel(0.9)),axis.text.y=element_text(size=rel(0.9)),axis.title.y=element_text(size=rel(0.9)))
+```
+
+#Leaf number
+```{r}
+hist(dat$leaf_count)
+
+#dropped interaction p = 0.90857
+leafn_p = glm(leaf_count ~soil_type+micro_trt,family=poisson(link = "log"),data=dat)
+summary(leafn_p)
+
+#1 - pchisq(succ.mdl$deviance, succ.mdl$df.resid)
+1-pchisq(3.6886,21) # 0.9999902
+3.6886/21 #0.1756476
+
+Anova(leafn_p,test.statistic = "Wald")
+
+leafn_post_p = emmeans(leafn_p, ~ micro_trt|soil_type,type="response")
+pairs(leafn_post_p)
+
+#Graph of the weighted model
+leafn_gg = as.data.frame(leafn_post_p)
+
+ggplot(leafn_gg, aes(micro_trt, rate)) +
+  geom_point(size=5) +
+  geom_errorbar(aes(ymin=asymp.LCL,ymax=asymp.UCL),width=0.2) +
+  ylab('Number of leaves\n(mean \U00B1 CI, n = 3)') +
+  scale_y_continuous(limits = c(0,10),breaks=seq(0,10,by=2))+
+  theme_bw(base_size = 30) +
+  facet_grid(~soil_type,scale="free")+
+  theme(aspect.ratio=1,panel.grid = element_blank(),
+        panel.border = element_rect(size = 1, colour = "black"),
+        legend.title = element_blank(),axis.title.x = element_blank(),axis.text.x=element_text(size=rel(0.9)),axis.text.y=element_text(size=rel(0.9)),axis.title.y=element_text(size=rel(0.9)))
+```
+
+#Above ground biomass
+```{r}
+#model for plant biomass - log transformed to normalize residuals.
+plant_w = lm(log(above_biomass_mg) ~soil_type*micro_trt,data=dat)
+summary(plant_w)
+
+#assess normality
+plant_w.res.lm = residuals(plant_w)
+summary(plant_w.res.lm)
+qqPlot(plant_w.res.lm)
+hist(plant_w.res.lm)
+boxplot(plant_w.res.lm)
+shapiro.test(plant_w.res.lm)
+
+#assess homoscedasticity
+plot(fitted(plant_w),plant_w.res.lm);
+abline(h=0,lty=2);
+lines(smooth.spline(fitted(plant_w),plant_w.res.lm));
+leveneTest(plant_w.res.lm ~ soil_type*micro_trt, data = dat)
+#looks okay
+
+Anova(plant_w)
+
+plant_w_post = emmeans(plant_w, ~ micro_trt|soil_type,type="response")
+pairs(plant_w_post)
+
+#######################
+#Graph of model
+plant_gg = dat %>% group_by(micro_trt,soil_type) %>% summarise(mean = mean(above_biomass_mg,na.rm=TRUE),SE = sd(above_biomass_mg,na.rm = TRUE)/sqrt(length(na.omit(above_biomass_mg))))
+
+ggplot(plant_gg, aes(micro_trt, mean)) +
+  geom_point(size=5) +
+  geom_errorbar(aes(ymin=mean-SE,ymax=mean+SE),width=0.2) +
+  ylab(expression(atop('Biomass [mg'~plant^-1~"]",paste('(mean \U00B1 SE, n = 3)')))) +
+  scale_y_continuous(limits = c(0,100),breaks=seq(0,100,by=20))+
+  theme_bw(base_size = 30) +
+  facet_grid(~soil_type,scale="free")+
+  theme(aspect.ratio=1,panel.grid = element_blank(),
+        panel.border = element_rect(size = 1, colour = "black"),
+        legend.title = element_blank(),axis.title.x = element_blank(),axis.text.x=element_text(size=rel(0.9)),axis.text.y=element_text(size=rel(0.9)),axis.title.y=element_text(size=rel(0.9)))
+
+```
+
+
+```{r}
+#associate plant biomass in relation to microbial treatment, soil, and number of nodules (proxy for symbiont fitness). Tried interacting with nodule number, but the data looked a little goofy for what pulled out differences due to the fact that there is a low number of reps (I think).
+
+cor_biomass = lm((above_biomass_mg) ~ (number_nodules)*micro_trt*soil_type,data=subset(dat,micro_trt!="Apo"))
+summary(cor_biomass)
+AIC(cor_biomass)
+
+#assess normality
+cor_biomass.res.lm = residuals(cor_biomass)
+summary(cor_biomass.res.lm)
+qqPlot(cor_biomass.res.lm)
+hist(cor_biomass.res.lm)
+boxplot(cor_biomass.res.lm)
+shapiro.test(cor_biomass.res.lm)
+
+#assess homoscedasticity
+plot(fitted(cor_biomass),cor_biomass.res.lm);
+abline(h=0,lty=2);
+lines(smooth.spline(fitted(cor_biomass),cor_biomass.res.lm));
+leveneTest(cor_biomass.res.lm ~ soil_type*micro_trt, data = dat)
+#looks okay
+
+Anova(cor_biomass,type='III')
+
+emtrends(cor_biomass, pairwise ~ micro_trt|soil_type, var = "number_nodules")
+
+mmtavg = mean(c(dat[dat$micro_trt!="Apo"&dat$soil_type=='SV',12]))
+emmeans(cor_biomass,pairwise~micro_trt|soil_type,at=list(number_nodules=mmtavg))
+
+ggplot(subset(dat,micro_trt!="Apo"),aes(x=number_nodules,y=above_biomass_mg,color=micro_trt)) +
+  geom_point(size=5,aes(shape=soil_type)) +
+  ylab(expression("Plant biomass [mg]")) +
+  xlab(expression("Number of nodules"))+
+  geom_smooth(method="lm") +
+  #annotate("text", x = 10, y = 95, label = "r = 0.95 \n p < 0.0001",size=8)+
+  theme_bw(base_size = 30) +
+  theme(aspect.ratio=1,panel.grid = element_blank(),
+        panel.border = element_rect(size = 1, colour = "black"),
+        legend.title = element_blank(),axis.text.x=element_text(size=rel(0.9)),axis.text.y=element_text(size=rel(0.9)),axis.title.y=element_text(size=rel(0.9)))
+
+fit_cor = subset(dat,micro_trt!="Apo")
+cor.test(fit_cor$number_nodules, fit_cor$above_biomass_mg) #0.9516598 
+```
+
+```{r}
+#associate plant biomass in relation to microbial treatment, soil, and nodule biomass (proxy for symbiont fitness) - can also do with per nodule biomass but only positive association for MMT. Not interaction with MMT nodule biomass and trt, removed
+
+cor_b_biomass = lm(log(above_biomass_mg) ~ per_nod_mg+micro_trt,data=subset(dat,micro_trt!="Apo"&soil_type=="MMT"))
+summary(cor_b_biomass)
+AIC(cor_b_biomass)
+
+#assess normality
+cor_b_biomass.res.lm = residuals(cor_b_biomass)
+summary(cor_b_biomass.res.lm)
+qqPlot(cor_b_biomass.res.lm)
+hist(cor_b_biomass.res.lm)
+boxplot(cor_b_biomass.res.lm)
+shapiro.test(cor_b_biomass.res.lm)
+
+#assess homoscedasticity
+plot(fitted(cor_b_biomass),cor_b_biomass.res.lm);
+abline(h=0,lty=2);
+lines(smooth.spline(fitted(cor_b_biomass),cor_b_biomass.res.lm));
+leveneTest(cor_b_biomass.res.lm ~ soil_type*micro_trt, data = dat)
+#looks okay
+
+Anova(cor_b_biomass)
+
+ggplot(subset(dat,micro_trt!="Apo"),aes(x=per_nod_mg,y=above_biomass_mg,color=micro_trt,shape=soil_type)) +
+  geom_point(size=5) +
+    theme_bw(base_size = 30) +
+  theme(aspect.ratio=1,panel.grid = element_blank(),
+        panel.border = element_rect(size = 1, colour = "black"),
+        legend.title = element_blank(),axis.title.x = element_blank(),axis.text.x=element_text(size=rel(0.9)),axis.text.y=element_text(size=rel(0.9)),axis.title.y=element_text(size=rel(0.9)))
+
+ggplot(subset(dat,micro_trt!="Apo"&soil_type=="MMT"),aes(x=per_nod_mg,y=above_biomass_mg,color=micro_trt,shape=soil_type)) +
+  geom_point(size=5) +
+    theme_bw(base_size = 30) +
+  theme(aspect.ratio=1,panel.grid = element_blank(),
+        panel.border = element_rect(size = 1, colour = "black"),
+        legend.title = element_blank(),axis.title.x = element_blank(),axis.text.x=element_text(size=rel(0.9)),axis.text.y=element_text(size=rel(0.9)),axis.title.y=element_text(size=rel(0.9)))
+
+fit_cor = subset(dat,micro_trt!="Apo")
+cor.test(fit_cor$per_nod_mg, fit_cor$above_biomass_mg) #0.9516598 
+```
+
