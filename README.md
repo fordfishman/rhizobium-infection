@@ -15,4 +15,4 @@ Repository for analyses of phage-rhizobium interactions, as well as indirect eff
 
 *pilot_analysis.Rmd:* Statistical analysis of greenhouse data, looking at differences between control, rhizobium, and phage treatments. 
 
-*calgary_net.R:*s Analysis of phage-host interactions of rhizobiophages from Hynes lab at the University of Calgary and Rhizobium leguminosarum from KBS. Includes regression of host resistance against partner quality, as well as analysis of ntework nestedness and modularity.  
+*calgary_net.R:* Analysis of phage-host interactions of rhizobiophages from Hynes lab at the University of Calgary and Rhizobium leguminosarum from KBS. Includes regression of host resistance against partner quality, as well as analysis of ntework nestedness and modularity.  
